@@ -1,19 +1,24 @@
-use std::{fs, io::Read, process::ExitCode, time::Duration};
+use std::{fs, io::{IsTerminal, Read, Write}, path::PathBuf, process::ExitCode, time::Duration};
 
 use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand, Args};
+use serde::{Deserialize, Serialize};
 use reqwest::{Method, blocking::Client, header::{HeaderName, HeaderValue}};
 
 #[derive(Parser)]
 #[command(name = "coati", version, about = "REST API client CLI")]
 struct Cli {
-    /// Base URL prepended to relative paths
+    /// Initialize (or re-initialize) the stored URL and API key
+    #[arg(long)]
+    init: bool,
+
+    /// API base URL (overrides the stored config)
     #[arg(short, long, env = "COATI_BASE_URL", global = true)]
     base_url: Option<String>,
 
-    /// Bearer token for the Authorization header
-    #[arg(short, long, env = "COATI_TOKEN", global = true, hide_env_values = true)]
-    token: Option<String>,
+    /// API key sent as a Bearer token (overrides the stored config)
+    #[arg(short = 'k', long, visible_alias = "token", env = "COATI_API_KEY", global = true, hide_env_values = true)]
+    api_key: Option<String>,
 
     /// Extra header, e.g. -H "Accept: application/json" (repeatable)
     #[arg(short = 'H', long = "header", global = true)]
@@ -36,7 +41,65 @@ struct Cli {
     raw: bool,
 
     #[command(subcommand)]
-    command: Cmd,
+    command: Option<Cmd>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct Config {
+    url: String,
+    api_key: String,
+}
+
+fn config_path() -> Result<PathBuf> {
+    let home = dirs::home_dir().context("cannot determine the user home directory")?;
+    Ok(home.join(".coati").join("config.toml"))
+}
+
+fn load_config() -> Result<Option<Config>> {
+    let path = config_path()?;
+    if !path.exists() {
+        return Ok(None);
+    }
+    let text = fs::read_to_string(&path).with_context(|| format!("cannot read {}", path.display()))?;
+    let cfg = toml::from_str(&text).with_context(|| format!("invalid config {} (run `coati --init`)", path.display()))?;
+    Ok(Some(cfg))
+}
+
+fn prompt(label: &str) -> Result<String> {
+    eprint!("{label}");
+    std::io::stderr().flush()?;
+    let mut s = String::new();
+    std::io::stdin().read_line(&mut s)?;
+    Ok(s.trim().to_string())
+}
+
+fn init_config() -> Result<Config> {
+    if !std::io::stdin().is_terminal() {
+        bail!("not initialized; run `coati --init` in an interactive terminal");
+    }
+    let url = prompt("API URL: ")?;
+    if !(url.starts_with("http://") || url.starts_with("https://")) {
+        bail!("URL must start with http:// or https://");
+    }
+    let api_key = rpassword::prompt_password("API key: ")?;
+    let cfg = Config { url, api_key: api_key.trim().to_string() };
+
+    let path = config_path()?;
+    let dir = path.parent().unwrap();
+    fs::create_dir_all(dir)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(dir, fs::Permissions::from_mode(0o700))?;
+    }
+    fs::write(&path, toml::to_string_pretty(&cfg)?)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o600))?;
+    }
+    eprintln!("Saved to {}", path.display());
+    Ok(cfg)
 }
 
 #[derive(Args)]
@@ -95,8 +158,29 @@ fn read_body(data: &str) -> Result<String> {
     }
 }
 
-fn run(cli: Cli) -> Result<bool> {
-    let (method, url, body) = match &cli.command {
+fn run(mut cli: Cli) -> Result<bool> {
+    let mut stored = None;
+    if cli.init {
+        stored = Some(init_config()?);
+    }
+    let Some(command) = cli.command.take() else {
+        if cli.init {
+            return Ok(true);
+        }
+        bail!("no command given; see `coati --help`");
+    };
+    if stored.is_none() && !(cli.base_url.is_some() && cli.api_key.is_some()) {
+        stored = match load_config()? {
+            Some(c) => Some(c),
+            None => Some(init_config()?),
+        };
+    }
+    if let Some(c) = stored {
+        cli.base_url.get_or_insert(c.url);
+        cli.api_key.get_or_insert(c.api_key);
+    }
+
+    let (method, url, body) = match &command {
         Cmd::Get(t) => (Method::GET, &t.url, None),
         Cmd::Head(t) => (Method::HEAD, &t.url, None),
         Cmd::Delete(t) => (Method::DELETE, &t.url, None),
@@ -120,7 +204,7 @@ fn run(cli: Cli) -> Result<bool> {
         let (k, v) = h.split_once(':').with_context(|| format!("invalid header '{h}', expected 'Name: value'"))?;
         req = req.header(HeaderName::from_bytes(k.trim().as_bytes())?, HeaderValue::from_str(v.trim())?);
     }
-    if let Some(t) = &cli.token {
+    if let Some(t) = cli.api_key.as_deref().filter(|k| !k.is_empty()) {
         req = req.bearer_auth(t);
     }
     if let Some(b) = body {
