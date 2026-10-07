@@ -1,13 +1,14 @@
 # coati-cli
 coatiの外部APIを利用するためのラッパーCLI
 
-## Setup
+## セットアップ
 
-On first launch (or with `coati --init`) you are asked for the API URL and API key,
-which are saved to `~/.coati/config.toml` (the user home directory on each OS, e.g.
-`C:\Users\<name>\.coati` on Windows; file permissions are restricted on Unix).
+初回起動時、または `coati --init` を実行すると、API の URL と API キーの入力を求められ、
+`~/.coati/config.toml` に保存されます（各 OS のユーザーホーム直下。Windows では
+`C:\Users\<名前>\.coati`）。Unix 系ではファイルの権限を所有者のみに制限します。
+API キーは平文で保存される点に注意してください。
 
-## Usage
+## 使い方
 
 ```sh
 cargo build --release
@@ -19,17 +20,22 @@ coati put https://api.example.com/users/1 -d @body.json
 coati delete /users/1 -i
 ```
 
-Options: `-b/--base-url` (`COATI_BASE_URL`) and `-k/--api-key` (`COATI_API_KEY`, sent as the `X-API-KEY` header)
-override the stored config, `-H`, `-q`, `-i`, `--raw`, `--timeout`, `--insecure` (skip TLS verification, for local dev certificates).
-Exit codes: 0 success, 1 HTTP error status, 2 request/usage error.
+オプション:
 
-## Debugging
+- `-b/--base-url`（環境変数 `COATI_BASE_URL`）、`-k/--api-key`（環境変数 `COATI_API_KEY`、`X-API-KEY` ヘッダで送信）: 保存済みの設定より優先されます。
+- `-H`: ヘッダ追加、`-q`: クエリ追加、`-d`: ボディ（`@ファイル` / `@-` で標準入力）
+- `-i`: ステータスとヘッダを表示、`--raw`: JSON を整形しない、`--timeout`: タイムアウト秒
+- `--insecure`: TLS 証明書の検証を省略（ローカルの開発用証明書向け）
 
-Install the CodeLLDB extension (`vadimcn.vscode-lldb`), set breakpoints, and press F5.
-Launch configurations in `.vscode/launch.json`: `--init`, `get` (prompts for a path), and custom arguments.
-They run in the integrated terminal so interactive prompts work.
+終了コード: 0 = 成功、1 = HTTP エラー、2 = リクエスト/引数エラー
 
-## API spec (agent knowledge)
+## デバッグ
 
-`coati spec` downloads `/api/external/openapi.json` (authenticated with `X-API-KEY`) to `docs/openapi.json`.
-[AGENTS.md](AGENTS.md) tells coding agents to read that file before implementing commands.
+拡張機能 CodeLLDB（`vadimcn.vscode-lldb`）をインストールし、ブレークポイントを置いて F5 を押します。
+`.vscode/launch.json` の構成は `--init`、`get`（パスを入力）、任意の引数の 3 つです。
+統合ターミナルで動くため、対話入力も使えます。
+
+## API 仕様（エージェント向けナレッジ）
+
+`coati spec` で `/api/external/openapi.json`（`X-API-KEY` 認証）を `docs/openapi.json` に保存します。
+コーディングエージェントは [AGENTS.md](AGENTS.md) に従い、コマンドを実装する前にこのファイルを読みます。
