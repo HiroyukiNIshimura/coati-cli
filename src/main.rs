@@ -81,7 +81,13 @@ fn init_config() -> Result<Config> {
     if !(url.starts_with("http://") || url.starts_with("https://")) {
         bail!("URL must start with http:// or https://");
     }
-    let api_key = rpassword::prompt_password("API key: ")?;
+    let api_key = match rpassword::prompt_password("API key: ") {
+        Ok(k) => k,
+        Err(_) => {
+            eprintln!("(no controlling terminal: the API key will be echoed)");
+            prompt("API key: ")?
+        }
+    };
     let cfg = Config { url, api_key: api_key.trim().to_string() };
 
     let path = config_path()?;
