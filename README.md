@@ -48,8 +48,23 @@ TLS は rustls を使っているため OpenSSL などの外部ライブラリ�
 
 - 利用者は `coati` を PATH の通ったディレクトリ（例: `/usr/local/bin`、`~/.local/bin`）に置き、`coati --init` で URL と API キーを設定します。`~/.coati/config.toml` は同梱しないでください（API キーが含まれます）。
 - バイナリはビルドした OS・CPU 専用です（macOS arm64 でビルドしたものは Windows / Linux では動きません）。他の OS 向けには、その OS 上でビルドしてください。
-- macOS で、ダウンロードしたバイナリが Gatekeeper にブロックされる場合は、`xattr -d com.apple.quarantine coati` で解除できます（未署名のため）。
-- 配布物の例: `tar czf coati-<version>-<os>-<arch>.tar.gz coati`（Windows は zip）。
+- macOS で、ダウンロードしたバイナリが Gatekeeper にブロックされる場合は、配布元とバイナリを信頼できることを確認したうえで、`xattr -d com.apple.quarantine coati` を実行できます（未署名のため）。
+- 配布物の作成例（バージョンと CPU アーキテクチャは対象に合わせて変更してください）:
+
+  ```sh
+  version=0.1.0
+  os=macos
+  arch=arm64
+  tar czf "coati-${version}-${os}-${arch}.tar.gz" -C target/release coati
+  ```
+
+  Windows では PowerShell で zip を作成できます:
+
+  ```powershell
+  $version = "0.1.0"
+  $arch = "x86_64"
+  Compress-Archive -Path target\release\coati.exe -DestinationPath "coati-$version-windows-$arch.zip"
+  ```
 
 ## デバッグ
 
