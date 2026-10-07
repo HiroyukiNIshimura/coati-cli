@@ -37,6 +37,20 @@ coati api post /api/external/ping -d '{"message":"hi"}'
 
 終了コード: 0 = 成功、1 = HTTP エラー、2 = リクエスト/引数エラー
 
+## ビルドと配布
+
+```sh
+cargo build --release
+```
+
+配布するのは `target/release/coati`（Windows では `coati.exe`）の **1 ファイルのみ**です。
+TLS は rustls を使っているため OpenSSL などの外部ライブラリは不要で、`docs/` や `target/` 内の他のファイルも不要です。
+
+- 利用者は `coati` を PATH の通ったディレクトリ（例: `/usr/local/bin`、`~/.local/bin`）に置き、`coati --init` で URL と API キーを設定します。`~/.coati/config.toml` は同梱しないでください（API キーが含まれます）。
+- バイナリはビルドした OS・CPU 専用です（macOS arm64 でビルドしたものは Windows / Linux では動きません）。他の OS 向けには、その OS 上でビルドしてください。
+- macOS で、ダウンロードしたバイナリが Gatekeeper にブロックされる場合は、`xattr -d com.apple.quarantine coati` で解除できます（未署名のため）。
+- 配布物の例: `tar czf coati-<version>-<os>-<arch>.tar.gz coati`（Windows は zip）。
+
 ## デバッグ
 
 拡張機能 CodeLLDB（`vadimcn.vscode-lldb`）をインストールし、ブレークポイントを置いて F5 を押します。
