@@ -14,16 +14,24 @@ API キーは平文で保存される点に注意してください。
 cargo build --release
 
 coati --init
-coati get /users -q page=1
-coati post /users -d '{"name":"foo"}'
-coati put https://api.example.com/users/1 -d @body.json
-coati delete /users/1 -i
+coati item list <workspace> --page 1 --is-active true
+coati item get <workspace> <itemNumber>
+coati task list <workspace> <itemNumber> --is-completed false
+coati task get <workspace> <itemNumber> <sequence>
+coati task comments <workspace> <itemNumber> <sequence>
+coati spec
+
+# 任意のエンドポイントを直接呼ぶ
+coati api get /api/external/workspaces/<workspace>/items -q page=1
+coati api post /api/external/ping -d '{"message":"hi"}'
 ```
+
+コマンドは `coati <カテゴリ> <操作>` の形で、`coati --help` / `coati <カテゴリ> --help` で確認できます。
 
 オプション:
 
 - `-b/--base-url`（環境変数 `COATI_BASE_URL`）、`-k/--api-key`（環境変数 `COATI_API_KEY`、`X-API-KEY` ヘッダで送信）: 保存済みの設定より優先されます。
-- `-H`: ヘッダ追加、`-q`: クエリ追加、`-d`: ボディ（`@ファイル` / `@-` で標準入力）
+- `-H`: ヘッダ追加（グローバル）、`api` コマンドのみ `-q`: クエリ追加、`-d`: ボディ（`@ファイル` / `@-` で標準入力）
 - `-i`: ステータスとヘッダを表示、`--raw`: JSON を整形しない、`--timeout`: タイムアウト秒
 - `--insecure`: TLS 証明書の検証を省略（ローカルの開発用証明書向け）
 
