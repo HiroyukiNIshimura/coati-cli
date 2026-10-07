@@ -19,8 +19,8 @@ coati put https://api.example.com/users/1 -d @body.json
 coati delete /users/1 -i
 ```
 
-Options: `-b/--base-url` (`COATI_BASE_URL`) and `-k/--api-key` (`COATI_API_KEY`, sent as Bearer)
-override the stored config, `-H`, `-q`, `-i`, `--raw`, `--timeout`.
+Options: `-b/--base-url` (`COATI_BASE_URL`) and `-k/--api-key` (`COATI_API_KEY`, sent as the `X-API-KEY` header)
+override the stored config, `-H`, `-q`, `-i`, `--raw`, `--timeout`, `--insecure` (skip TLS verification, for local dev certificates).
 Exit codes: 0 success, 1 HTTP error status, 2 request/usage error.
 
 ## Debugging
@@ -28,3 +28,8 @@ Exit codes: 0 success, 1 HTTP error status, 2 request/usage error.
 Install the CodeLLDB extension (`vadimcn.vscode-lldb`), set breakpoints, and press F5.
 Launch configurations in `.vscode/launch.json`: `--init`, `get` (prompts for a path), and custom arguments.
 They run in the integrated terminal so interactive prompts work.
+
+## API spec (agent knowledge)
+
+`coati spec` downloads `/api/external/openapi.json` (authenticated with `X-API-KEY`) to `docs/openapi.json`.
+[AGENTS.md](AGENTS.md) tells coding agents to read that file before implementing commands.

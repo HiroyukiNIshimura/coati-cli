@@ -32,6 +32,10 @@ struct Cli {
     #[arg(long, default_value_t = 30, global = true)]
     timeout: u64,
 
+    /// Skip TLS certificate verification (e.g. localhost dev certificates)
+    #[arg(long, global = true)]
+    insecure: bool,
+
     /// Print status line and response headers
     #[arg(short, long, global = true)]
     include: bool,
@@ -126,8 +130,19 @@ struct WithBody {
     content_type: String,
 }
 
+#[derive(Args)]
+struct SpecArgs {
+    /// Output file
+    #[arg(short, long, default_value = "docs/openapi.json")]
+    output: PathBuf,
+}
+
+const SPEC_PATH: &str = "/api/external/openapi.json";
+
 #[derive(Subcommand)]
 enum Cmd {
+    /// Download the API's OpenAPI spec (used as agent knowledge)
+    Spec(SpecArgs),
     /// Send a GET request
     Get(Target),
     /// Send a HEAD request
@@ -186,7 +201,12 @@ fn run(mut cli: Cli) -> Result<bool> {
         cli.api_key.get_or_insert(c.api_key);
     }
 
+    let spec_out = match &command {
+        Cmd::Spec(a) => Some(a.output.clone()),
+        _ => None,
+    };
     let (method, url, body) = match &command {
+        Cmd::Spec(_) => (Method::GET, &SPEC_PATH.to_string(), None),
         Cmd::Get(t) => (Method::GET, &t.url, None),
         Cmd::Head(t) => (Method::HEAD, &t.url, None),
         Cmd::Delete(t) => (Method::DELETE, &t.url, None),
@@ -198,6 +218,7 @@ fn run(mut cli: Cli) -> Result<bool> {
 
     let client = Client::builder()
         .timeout(Duration::from_secs(cli.timeout))
+        .danger_accept_invalid_certs(cli.insecure)
         .user_agent(concat!("coati/", env!("CARGO_PKG_VERSION")))
         .build()?;
     let mut req = client.request(method, &url);
@@ -211,7 +232,7 @@ fn run(mut cli: Cli) -> Result<bool> {
         req = req.header(HeaderName::from_bytes(k.trim().as_bytes())?, HeaderValue::from_str(v.trim())?);
     }
     if let Some(t) = cli.api_key.as_deref().filter(|k| !k.is_empty()) {
-        req = req.bearer_auth(t);
+        req = req.header("X-API-KEY", HeaderValue::from_str(t)?);
     }
     if let Some(b) = body {
         if let Some(d) = &b.data {
@@ -229,6 +250,18 @@ fn run(mut cli: Cli) -> Result<bool> {
         eprintln!();
     }
     let text = resp.text()?;
+    if let Some(path) = spec_out {
+        if !status.is_success() {
+            bail!("failed to fetch spec: HTTP {status}");
+        }
+        let json: serde_json::Value = serde_json::from_str(&text).context("spec is not valid JSON")?;
+        if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
+            fs::create_dir_all(dir)?;
+        }
+        fs::write(&path, serde_json::to_string_pretty(&json)? + "\n")?;
+        eprintln!("Saved spec to {}", path.display());
+        return Ok(true);
+    }
     let out = if cli.raw {
         text
     } else {
