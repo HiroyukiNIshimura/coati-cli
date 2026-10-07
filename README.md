@@ -40,7 +40,7 @@ coati api post /api/external/ping -d '{"message":"hi"}'
 ## デバッグ
 
 拡張機能 CodeLLDB（`vadimcn.vscode-lldb`）をインストールし、ブレークポイントを置いて F5 を押します。
-`.vscode/launch.json` の構成は `--init`、`get`（パスを入力）、任意の引数の 3 つです。
+`.vscode/launch.json` の構成は `--init`、`api get`（パスを入力）、任意の引数の 3 つです。
 統合ターミナルで動くため、対話入力も使えます。
 
 ## API 仕様（エージェント向けナレッジ）
