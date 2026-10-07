@@ -1,0 +1,39 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "coati: --init",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/target/debug/coati",
+      "args": ["--init"],
+      "cwd": "${workspaceFolder}",
+      "terminal": "integrated",
+      "preLaunchTask": "cargo build"
+    },
+    {
+      "name": "coati: get (prompt for path)",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/target/debug/coati",
+      "args": ["-i", "get", "${input:path}"],
+      "cwd": "${workspaceFolder}",
+      "terminal": "integrated",
+      "preLaunchTask": "cargo build"
+    },
+    {
+      "name": "coati: custom args",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/target/debug/coati",
+      "args": "${input:args}",
+      "cwd": "${workspaceFolder}",
+      "terminal": "integrated",
+      "preLaunchTask": "cargo build"
+    }
+  ],
+  "inputs": [
+    { "id": "path", "type": "promptString", "description": "API path or URL", "default": "/" },
+    { "id": "args", "type": "promptString", "description": "coati arguments", "default": "get /" }
+  ]
+}
